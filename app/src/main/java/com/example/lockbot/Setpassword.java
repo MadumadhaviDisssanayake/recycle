@@ -59,7 +59,7 @@ public class Setpassword extends AppCompatActivity {
                         Intent intent = new Intent(getApplicationContext(), callrecorder.class);
                         startActivity((intent));
                     } else if (rbutton3.isChecked()) {
-                        Intent intent = new Intent(getApplicationContext(), Delete.class);
+                        Intent intent = new Intent(getApplicationContext(), RecycleBin.class);
                         startActivity((intent));
                     }
                 }

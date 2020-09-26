@@ -12,12 +12,13 @@ import java.util.ArrayList;
 
 public class DBHelper extends SQLiteOpenHelper {
 
-    public static final String DATABASE_NAME = "MyDBName.db";
-    public static final String CONTACTS_TABLE_NAME = "recycle";
-    public static final String CONTACTS_COLUMN_ID = "id";
-    public static final String CONTACTS_COLUMN_DATE = "date";
-    public static final String CONTACTS_COLUMN_SELECT = "selection";
-    public static final String CONTACTS_COLUMN_VISIBILITY = "visibility";
+    public static final String DATABASE_NAME = "lock_bot.db";
+    public static final String FILE_TABLE_NAME = "locked_files";
+    public static final String FILE_COLUMN_ID = "id";
+    public static final String FILE_COLUMN_FILE_NAME = "fileName";
+    public static final String FILE_COLUMN_DATE = "date";
+    public static final String FILE_COLUMN_FILE_TYPE = "fileType";
+    public static final String FILE_COLUMN_VISIBILITY = "visibility";
 
     public DBHelper(Context context) {
         super(context, DATABASE_NAME , null, 1);
@@ -26,10 +27,9 @@ public class DBHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         // TODO Auto-generated method stub
-        db.execSQL(
-                "create table contacts " +
-                        "(id integer primary key, date text,phone text,selection text, street text,place text)"
-        );
+        String createTableStatement = "CREATE TABLE " + FILE_TABLE_NAME + "(" + FILE_COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "+ FILE_COLUMN_FILE_NAME +" TEXT, "+ FILE_COLUMN_DATE +" TEXT, "+ FILE_COLUMN_FILE_TYPE +" TEXT, "+ FILE_COLUMN_VISIBILITY +" BOOL)";
+
+        db.execSQL(createTableStatement);
     }
 
     @Override
@@ -39,16 +39,21 @@ public class DBHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public boolean insertContact (String date, String phone, String selection, String street,String place) {
+    public boolean insertFile (FileModel fileModel) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
-        contentValues.put("date", date);
-        contentValues.put("phone", phone);
-        contentValues.put("selection", selection);
-        contentValues.put("street", street);
-        contentValues.put("place", place);
-        db.insert("contacts", null, contentValues);
-        return true;
+
+//        contentValues.put(FILE_COLUMN_ID, fileModel.getId());
+        contentValues.put(FILE_COLUMN_FILE_NAME, fileModel.getFileName());
+        contentValues.put(FILE_COLUMN_DATE, fileModel.getDate());
+        contentValues.put(FILE_COLUMN_FILE_TYPE, fileModel.getFileType());
+        contentValues.put(FILE_COLUMN_VISIBILITY, fileModel.getVisibility());
+
+        long insert = db.insert(FILE_TABLE_NAME, null, contentValues);
+
+        db.close();
+
+        return insert != -1;
     }
 
     public Cursor getData(int id) {
@@ -59,29 +64,140 @@ public class DBHelper extends SQLiteOpenHelper {
 
     public int numberOfRows(){
         SQLiteDatabase db = this.getReadableDatabase();
-        int numRows = (int) DatabaseUtils.queryNumEntries(db, CONTACTS_TABLE_NAME);
+        int numRows = (int) DatabaseUtils.queryNumEntries(db, FILE_TABLE_NAME);
         return numRows;
     }
 
-    public Integer deleteContact (Integer id) {
+    public Integer deleteFiles (Integer id) {
         SQLiteDatabase db = this.getWritableDatabase();
-        return db.delete("contacts",
+        return db.delete(FILE_TABLE_NAME,
                 "id = ? ",
                 new String[] { Integer.toString(id) });
     }
 
-    public ArrayList<String> getAllCotacts() {
-        ArrayList<String> array_list = new ArrayList<String>();
-
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor res =  db.rawQuery( "select * from contacts", null );
-        res.moveToFirst();
-
-        while(res.isAfterLast() == false){
-            array_list.add(res.getString(res.getColumnIndex(CONTACTS_COLUMN_ID)));
-            res.moveToNext();
-        }
-        return array_list;
+    public Integer restoreFiles (Integer id){
+        ContentValues cv = new ContentValues();
+        cv.put(FILE_COLUMN_VISIBILITY,1);
+        SQLiteDatabase db = this.getWritableDatabase();
+        return db.update(FILE_TABLE_NAME,cv,"id = "+id,null);
     }
 
+    public ArrayList<FileModel> getAllFiles() {
+        ArrayList<FileModel> returnList = new ArrayList<>();
+        String queryString = "SELECT * FROM "+ FILE_TABLE_NAME +" WHERE "+ FILE_COLUMN_VISIBILITY +"=0";
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor result =  db.rawQuery(queryString,null);
+
+        if(result.moveToFirst()){
+            do{
+                int fileID = result.getInt(0);
+                String fileName = result.getString(1);
+                String fileDate = result.getString(2);
+                String fileType = result.getString(3);
+                boolean fileVisibility = result.getInt(4) == 1;
+
+                FileModel fileModel = new FileModel(fileID, fileName, fileDate, fileType, fileVisibility);
+                returnList.add(fileModel);
+
+            }while(result.moveToNext());
+        }
+        else {
+            //define what should appear if the list is empty
+        };
+
+        result.close();
+        db.close();
+        return returnList;
+    }
+
+    public ArrayList<FileModel> getDocFiles() {
+        ArrayList<FileModel> returnList = new ArrayList<>();
+        String queryString = "SELECT * FROM "+ FILE_TABLE_NAME +" WHERE "+ FILE_COLUMN_FILE_TYPE + "=\"document\" AND "+ FILE_COLUMN_VISIBILITY +"=0";
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor result =  db.rawQuery(queryString,null);
+
+        if(result.moveToFirst()){
+            do{
+                int fileID = result.getInt(0);
+                String fileName = result.getString(1);
+                String fileDate = result.getString(2);
+                String fileType = result.getString(3);
+                boolean fileVisibility = result.getInt(4) == 1;
+
+                FileModel fileModel = new FileModel(fileID, fileName, fileDate, fileType, fileVisibility);
+                returnList.add(fileModel);
+
+            }while(result.moveToNext());
+        }
+        else {
+            //define what should appear if the list is empty
+        };
+
+        result.close();
+        db.close();
+
+        return returnList;
+    }
+
+    public ArrayList<FileModel> getImageFiles() {
+        ArrayList<FileModel> returnList = new ArrayList<>();
+        String queryString = "SELECT * FROM "+ FILE_TABLE_NAME +" WHERE "+ FILE_COLUMN_FILE_TYPE + "=\"image\" AND "+ FILE_COLUMN_VISIBILITY +"=0";
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor result =  db.rawQuery(queryString,null);
+
+        if(result.moveToFirst()){
+            do{
+                int fileID = result.getInt(0);
+                String fileName = result.getString(1);
+                String fileDate = result.getString(2);
+                String fileType = result.getString(3);
+                boolean fileVisibility = result.getInt(4) == 1;
+
+                FileModel fileModel = new FileModel(fileID, fileName, fileDate, fileType, fileVisibility);
+                returnList.add(fileModel);
+
+            }while(result.moveToNext());
+        }
+        else {
+            //define what should appear if the list is empty
+        };
+
+        result.close();
+        db.close();
+
+        return returnList;
+    }
+
+    public ArrayList<FileModel> getVideoFiles() {
+        ArrayList<FileModel> returnList = new ArrayList<>();
+        String queryString = "SELECT * FROM "+ FILE_TABLE_NAME +" WHERE "+ FILE_COLUMN_FILE_TYPE + "=\"video\" AND "+ FILE_COLUMN_VISIBILITY +"=0";
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor result =  db.rawQuery(queryString,null);
+
+        if(result.moveToFirst()){
+            do{
+                int fileID = result.getInt(0);
+                String fileName = result.getString(1);
+                String fileDate = result.getString(2);
+                String fileType = result.getString(3);
+                boolean fileVisibility = result.getInt(4) == 1;
+
+                FileModel fileModel = new FileModel(fileID, fileName, fileDate, fileType, fileVisibility);
+                returnList.add(fileModel);
+
+            }while(result.moveToNext());
+        }
+        else {
+            //define what should appear if the list is empty
+        };
+
+        result.close();
+        db.close();
+
+        return returnList;
+    }
 }
